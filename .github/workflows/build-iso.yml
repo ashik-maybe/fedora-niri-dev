@@ -1,0 +1,72 @@
+name: iso
+
+# `validate` runs on every change to the spin definition. It is cheap: no ISO is
+# downloaded.
+#
+# `build` is manual only, because it downloads the Fedora netinst (~1.3 GB) and
+# uploads the resulting ISO (~1.3 GB). Run it from the Actions tab when you want
+# an artifact.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kickstart/**"
+      - "files/**"
+      - "repos/**"
+      - "justfile"
+      - ".github/workflows/build-iso.yml"
+  pull_request:
+    paths:
+      - "kickstart/**"
+      - "files/**"
+      - "repos/**"
+      - "justfile"
+      - ".github/workflows/build-iso.yml"
+  workflow_dispatch:
+    inputs:
+      fedora_release:
+        description: Fedora release to build against
+        required: true
+        default: "45"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:45
+    steps:
+      - name: Install git
+        run: dnf install -y git
+      - uses: actions/checkout@v4
+      - name: Install pykickstart
+        run: dnf install -y pykickstart
+      - name: Validate kickstart
+        run: ksvalidator kickstart/niri-dev.ks
+
+  build:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:45
+    env:
+      FEDORA_RELEASE: ${{ github.event.inputs.fedora_release || '45' }}
+    steps:
+      - name: Install tooling
+        run: dnf install -y git just lorax pykickstart xorriso isomd5sum
+      - uses: actions/checkout@v4
+      - name: Fetch Fedora Everything netinst
+        run: just fetch-base
+      - name: Build ISO
+        run: just build
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: niri-dev-${{ env.FEDORA_RELEASE }}-x86_64
+          path: out/*.iso
+          # The ISO is already compressed; zipping it just burns CI minutes.
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
