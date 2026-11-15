@@ -141,10 +141,11 @@ radeontop
 
 # Codecs (RPM Fusion)
 #
-# Full ffmpeg is installed by a swap in %post: RPM Fusion's ffmpeg conflicts
-# with Fedora's ffmpeg-free, and a %packages section cannot express
-# --allowerasing. The swap buys encoders (libx264, libx265) and complete codec
-# coverage; Fedora's ffmpeg-free alone decodes H.264 and HEVC.
+# ffmpeg is listed here, not swapped in afterwards. Resolution testing showed
+# RPM Fusion's ffmpeg-libs satisfies every libavcodec/libavformat requirement in
+# the transaction, so ffmpeg-free is never selected and the whole set resolves
+# in one pass. That is also what makes the offline ISO possible: no
+# post-install dnf transaction needs a repository.
 #
 # Deliberately absent: mesa-vdpau-drivers-freeworld. It no longer exists as a
 # separate package on Fedora 45; mesa-va-drivers-freeworld obsoletes it.
@@ -170,6 +171,7 @@ gstreamer1-plugin-openh264
 gstreamer1-plugin-dav1d
 libheif-freeworld
 unrar
+ffmpeg
 
 # Media
 #
@@ -262,6 +264,22 @@ install -Dm0644 "$src/zram-generator.conf"     "$root/etc/systemd/zram-generator
 install -Dm0644 "$src/99-zram-sysctl.conf"     "$root/etc/sysctl.d/99-zram.conf"
 install -Dm0644 /run/install/repo/repos/google-chrome.repo "$root/etc/yum.repos.d/google-chrome.repo"
 
+# Assets fetched at build time (see build.sh): RPM Fusion's release packages and
+# Chrome's signing key. They are copied into the installed system here
+# because the ISO mount is not guaranteed to be visible inside the chrooted
+# %post, and because the install must work with the network unplugged.
+assets=/run/install/repo/assets
+for f in rpmfusion-free-release.noarch.rpm rpmfusion-nonfree-release.noarch.rpm \
+         google-chrome.asc; do
+  install -Dm0644 "$assets/$f" "$root/var/tmp/ks-assets/$f"
+done
+
+# Marker written by `build.sh offline`. The chrooted %post uses it to skip the
+# steps that can only work with a network.
+if [ -e /run/install/repo/offline ]; then
+  install -Dm0644 /run/install/repo/offline "$root/var/tmp/ks-assets/offline"
+fi
+
 # Enable the user unit statically: `systemctl --user enable` cannot run here,
 # but a wants-symlink is exactly what it would create.
 mkdir -p "$root/etc/systemd/user/graphical-session.target.wants"
@@ -276,32 +294,37 @@ ln -sfn /usr/lib/systemd/user/noctalia.service \
 %post --erroronfail --log=/root/ks-post.log
 set -euxo pipefail
 
-release="$(rpm -E %fedora)"
+# 0. Is this the offline ISO? build.sh marks it, and the only steps that need a
+#    network (Flathub) are skipped instead of timing out.
+offline=0
+if [ -e /var/tmp/ks-assets/offline ]; then
+  offline=1
+fi
 
 # 1. Persist the third-party repositories for the installed system.
 #    The `repo` lines above only configure the installer, and Anaconda writes
 #    them into /etc/yum.repos.d as a side effect. Drop those generated files
 #    first: the release packages below ship the maintained, signed versions, and
 #    leaving both would duplicate sections.
+#
+#    The release packages come from the ISO (copied by %post --nochroot), and
+#    `rpm -Uvh` is deliberate: their only dependencies are already installed, so
+#    this needs no repository metadata and works with no network. --nosignature
+#    is the chicken-and-egg: the key that signs these packages ships inside
+#    them, and their only content is repository definitions and that key.
 rm -f /etc/yum.repos.d/rpmfusion-free.repo \
       /etc/yum.repos.d/rpmfusion-free-updates.repo \
       /etc/yum.repos.d/rpmfusion-nonfree.repo \
-      /etc/yum.repos.d/rpmfusion-nonfree-updates.repo
+      /etc/yum.repos.d/rpmfusion-nonfree-updates.repo \
+      /etc/yum.repos.d/ks-offline.repo
 
-dnf install -y \
-  "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${release}.noarch.rpm" \
-  "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${release}.noarch.rpm"
+rpm -Uvh --nosignature /var/tmp/ks-assets/rpmfusion-free-release.noarch.rpm \
+         /var/tmp/ks-assets/rpmfusion-nonfree-release.noarch.rpm
 
 # Chrome's repo file is shipped on the ISO, so trust its signing key up front
-# instead of letting the first `dnf upgrade` stop for a key prompt.
-rpm --import https://dl.google.com/linux/linux_signing_key.pub
-
-# 1b. Full FFmpeg. ffmpeg-free cannot coexist with RPM Fusion's ffmpeg, so it is
-#     a swap, not an addition, and a %packages section cannot express
-#     --allowerasing. Playback works either way; this buys the encoders.
-if ! dnf swap -y ffmpeg-free ffmpeg --allowerasing; then
-  echo "WARNING: ffmpeg swap failed; ffmpeg-free remains installed" >&2
-fi
+# instead of letting the first `dnf upgrade` stop for a key prompt. The copy on
+# the ISO is what makes that work offline.
+rpm --import /var/tmp/ks-assets/google-chrome.asc
 
 # 2. Graphical boot by default, with SDDM as the greeter.
 systemctl set-default graphical.target
@@ -310,11 +333,15 @@ systemctl enable sddm.service
 # 3. Flathub, and the one Flatpak this image ships. Both steps need network and
 #    a working /var inside the chroot; if either is flaky, warn and move on
 #    rather than failing an otherwise good install.
-flatpak remote-add --if-not-exists flathub \
-  https://flathub.org/repo/flathub.flatpakrepo || \
-  echo "WARNING: could not add the flathub remote" >&2
-flatpak install -y --system flathub com.github.tchx84.Flatseal || \
-  echo "WARNING: Flatseal not preinstalled; run 'flatpak install flathub com.github.tchx84.Flatseal' after first boot" >&2
+if [ "$offline" -eq 1 ]; then
+  echo "offline ISO: skipping Flathub; install Flatseal after first boot" >&2
+else
+  flatpak remote-add --if-not-exists flathub \
+    https://flathub.org/repo/flathub.flatpakrepo || \
+    echo "WARNING: could not add the flathub remote" >&2
+  flatpak install -y --system flathub com.github.tchx84.Flatseal || \
+    echo "WARNING: Flatseal not preinstalled; run 'flatpak install flathub com.github.tchx84.Flatseal' after first boot" >&2
+fi
 
 # 4. Nushell as the login shell, keeping bash installed for scripts.
 grep -qx /usr/bin/nu /etc/shells || echo /usr/bin/nu >> /etc/shells
@@ -356,7 +383,7 @@ missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
            mesa-va-drivers-freeworld libva-intel-media-driver nushell \
            ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
-           gstreamer1-plugins-ugly-free; do
+           gstreamer1-plugins-ugly-free rpmfusion-free-release; do
   if ! rpm -q "$pkg" >/dev/null 2>&1; then
     echo "MISSING REQUIRED PACKAGE: $pkg" >&2
     missing=1
@@ -371,6 +398,10 @@ if ! vainfo 2>/dev/null | grep -q 'VAProfileH264High'; then
   echo "WARNING: vainfo reports no H264 profile (expected on VMs and on" \
        "NVIDIA without a VA-API backend); check 'vainfo' after first boot" >&2
 fi
+
+# 10. The build assets have been consumed. Leaving them behind would put RPM
+#     Fusion's release files and Chrome's key in /var/tmp forever.
+rm -rf /var/tmp/ks-assets
 
 %end
 
