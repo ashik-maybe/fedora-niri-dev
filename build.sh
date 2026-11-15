@@ -9,6 +9,8 @@
 #   ./build.sh deps       install the build dependencies (Fedora host)
 #   ./build.sh base       download the netinst ISO, the repo assets and comps
 #   ./build.sh check      validate the kickstart and its %pre/%post shell
+#   ./build.sh preflight  environment readiness: disk, tools, mirrors, container
+#   ./build.sh test-iso   content + boot test of an ISO (pass the ISO path)
 #   ./build.sh packages   resolve + download the package tree for the offline ISO
 #   ./build.sh online     build the ISO that installs from live repositories
 #   ./build.sh offline    build the ISO that installs with no network at all
@@ -258,6 +260,11 @@ deps)
 	;;
 base) base ;;
 check) check ;;
+preflight) bash scripts/preflight.sh ;;
+test-iso)
+	shift
+	bash scripts/test-iso.sh "${@}"
+	;;
 packages) fetch_packages ;;
 online)
 	base

@@ -9,6 +9,8 @@
 #   just build          online ISO: installs from live repositories (~1.3 GB)
 #   just build-offline  offline ISO: installs with no network (~3 GB)
 #   just check          validate the kickstart and its embedded shell
+#   just preflight      environment readiness before the heavy steps
+#   just test-iso       content + boot test of a built ISO
 #   just clean          remove build output
 #
 # Override the target release:
@@ -24,6 +26,12 @@ deps:
 
 check:
     ./build.sh check
+
+preflight:
+    ./build.sh preflight
+
+test-iso ISO='':
+    ./build.sh test-iso {{ISO}}
 
 fetch-base:
     ./build.sh base

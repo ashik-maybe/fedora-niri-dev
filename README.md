@@ -414,10 +414,13 @@ GitHub workflow only validates the kickstart.
 ./build.sh offline    # out/niri-dev-45-x86_64-offline.iso  (~3.0 GB)
 ./build.sh packages   # just resolve the package tree (packages/, ~2 GB)
 ./build.sh check      # kickstart validation + bash -n on every %pre/%post
+./build.sh preflight  # disk, tools, mirrors, container: will this machine build?
+./build.sh test-iso   # content + boot test of an out/*.iso (pass its path)
 ```
 
 With `just`, the same steps are `just fetch-base`, `just build`,
-`just build-offline`, `just packages`, `just check`.
+`just build-offline`, `just packages`, `just check`, `just preflight`,
+`just test-iso`.
 
 ### What a local build needs
 
@@ -496,6 +499,8 @@ scripts/check-kickstart.sh ksvalidator + bash -n on every %pre/%post.
 scripts/expand-packages.py comps + %packages -> explicit package list.
 scripts/resolve-packages.sh Downloads that list into packages/.
 scripts/make-offline-ks.py Writes the offline ISO's kickstart.
+scripts/preflight.sh    Environment readiness check, before the heavy steps.
+scripts/test-iso.sh     Content + boot test of a built ISO.
 justfile                   Thin wrappers around build.sh.
 .github/workflows/         Kickstart validation on push and PR.
 ```
