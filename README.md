@@ -91,28 +91,46 @@ laptop or desktop.
 `libva-intel-media-driver` `libva-intel-driver` `mesa-va-drivers-freeworld`
 `gstreamer1-plugins-good` `gstreamer1-plugins-bad-free`
 `gstreamer1-plugins-bad-freeworld` `gstreamer1-plugins-ugly`
-`gstreamer1-plugin-libav` `gstreamer1-plugin-openh264`
-`gstreamer1-plugin-dav1d` `libheif-freeworld`
+`gstreamer1-plugins-ugly-free` `gstreamer1-plugin-libav`
+`gstreamer1-plugin-openh264` `gstreamer1-plugin-dav1d`
+`libheif-freeworld` `unrar`
 
 GStreamer is listed explicitly because Chrome's WebRTC stack, screen recording
-and Nautilus video thumbnails all go through it. `gstreamer1-plugin-libav`
-supplies the H.264/HEVC decoders without swapping the whole `ffmpeg-free` stack.
+and Nautilus video thumbnails all go through it. The plugin split is deliberate:
 
-Fedora's `ffmpeg-free` is the base decoder stack: H.264 and HEVC decode work
-out of the box. RPM Fusion's `ffmpeg` is *not* shipped, because it conflicts
-with `ffmpeg-free` and a kickstart cannot resolve that swap. See
-[full FFmpeg](#full-ffmpeg-optional) if you need encoders.
+- `gstreamer1-plugins-ugly` (RPM Fusion) is the H.264 **encoder** plugin
+- `gstreamer1-plugins-ugly-free` (Fedora) is the 16 **decoder** plugins —
+  a52, mpeg2, dvdread, dvdlpcm, wma — that the encoder package does not ship
+- the `-freeworld` packages are additive on Fedora 45, not replacements:
+  verified with `repoquery`, they declare no `Conflicts` and share no plugin
+  files with their `-free` counterparts
 
-Both RPM Fusion repositories — `free` and `nonfree` — are enabled on the
-installed system. Nothing from `nonfree` is preinstalled; it is there for
-`akmod-nvidia`, `unrar` and the media extras you may add later.
+The GStreamer VA-API plugin needs no package of its own: `libgstva.so` ships
+inside `gstreamer1-plugins-bad-free`.
+
+Full `ffmpeg` is preinstalled. RPM Fusion's `ffmpeg` conflicts with Fedora's
+`ffmpeg-free`, and a kickstart `%packages` section cannot express
+`--allowerasing`, so the swap runs in `%post`:
+
+```bash
+dnf swap -y ffmpeg-free ffmpeg --allowerasing
+```
+
+That buys libx264/libx265 and the rest of the encoders. Both RPM Fusion
+repositories — `free` and `nonfree` — are enabled on the installed system,
+and `unrar` is the one nonfree package shipped by default.
+
+`libdvdcss` is **not available** for Fedora 45 in RPM Fusion, so encrypted DVD
+playback is impossible. Unencrypted DVD media still decodes through
+`dvdread`/`dvdnav` in `ugly-free`.
 
 **Media**
 
 `vlc` `yt-dlp` `playerctl` `cava` `wlsunset` `wf-recorder`
 
-VLC is Fedora's own build as of Fedora 45; RPM Fusion is only needed if you
-later want `vlc-plugins-freeworld`.
+VLC is Fedora's own build as of Fedora 45; RPM Fusion supplies
+`vlc-plugins-freeworld` on top, which is where DVD, Blu-ray and the remaining
+formats come from.
 
 **Files and documents**
 
@@ -191,8 +209,9 @@ LIBVA_DRIVER_NAME=i965 vainfo
 ## Graphics and codecs
 
 Fedora's own `ffmpeg-free` and `mesa-va-drivers` intentionally omit some
-patent-encumbered components. This image enables RPM Fusion at install time so
-decode works without a second trip to the terminal.
+patent-encumbered components. This image enables RPM Fusion at install time and
+swaps in the full `ffmpeg`, so both decode and encode work without a second trip
+to the terminal.
 
 ### Intel
 
@@ -225,22 +244,11 @@ sudo dnf install akmod-nvidia-open
 ```
 
 On Secure Boot systems the first boot will prompt you to enrol a MOK key —
-complete it, or the module will not load. For browser hardware decode on
-NVIDIA, add `nvidia-vaapi-driver` from RPM Fusion.
+complete it, or the module will not load.
 
-### Full FFmpeg (optional)
-
-Fedora's `ffmpeg-free` decodes H.264 and HEVC, but it has no encoders and no
-libx264/libx265. RPM Fusion's `ffmpeg` conflicts with it, so the swap is
-deliberate and manual:
-
-```bash
-sudo dnf swap ffmpeg-free ffmpeg --allowerasing
-```
-
-Do this only if something you use needs to *encode* H.264 or HEVC. It is not
-needed for playback, and it replaces the decoder libraries that VLC and the
-GStreamer plugins are linked against.
+NVIDIA hardware decode through VA-API needs `nvidia-vaapi-driver`, which is not
+packaged for Fedora 45 in RPM Fusion. Chromium's own Vulkan-based decode path is
+the practical option there.
 
 ## Per-machine notes
 
