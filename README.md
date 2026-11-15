@@ -352,7 +352,7 @@ owned by your user.
    else, `%post` included, is shared with the online image.
 
 The result is verified before packaging: resolving the list against only
-`file://…/packages` must succeed with zero problems. On Fedora 45 that is 1319
+`file://…/packages` must succeed with zero problems. On Fedora 45 that is 1321
 packages.
 
 The package resolution runs inside a
