@@ -3,8 +3,8 @@ name: iso
 # `validate` runs on every change to the spin definition. It is cheap: no ISO is
 # downloaded.
 #
-# `build` is manual only: it downloads the Fedora netinst, resolves ~1.5 GB of
-# packages for the offline image, and uploads a 2.5 GB artifact.
+# `build` is manual only: it downloads the Fedora netinst, resolves ~2 GB of
+# packages for the offline image, and uploads a ~3 GB artifact.
 #
 # The build runs in a privileged container on purpose. mkksiso rebuilds the
 # ISO's EFI boot image with mkfs.vfat, which needs a loop device; a normal

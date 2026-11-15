@@ -1,13 +1,43 @@
 # niri-dev
 
-A developer-focused Fedora respin: stock niri, stock noctalia, and a working
-toolchain out of the box.
+A developer-focused Fedora 45 respin built around [niri] — a scrollable
+Wayland compositor — and [noctalia], its session shell. Stock niri, stock
+noctalia, and a working toolchain out of the box.
 
 No themes. No dotfiles. No custom `niri/config.kdl`. If upstream niri or
 noctalia changes something, this image inherits the change instead of fighting
 it.
 
+The one deliberate exception to "Fedora's defaults" is swap sizing: the image
+ships a `zram-generator.conf` and a matching `sysctl.d` file tuned for
+developer workloads, documented in [Per-machine notes](#per-machine-notes).
+Everything else — sleep, FBC/PSR, power profiles, VA-API driver selection — is
+exactly as Fedora ships it.
+
+The base is the **Fedora Everything netinst**, built with `mkksiso` and a
+kickstart. Two ISOs come out: an online one that resolves packages at install
+time, and an offline one that embeds the whole resolved package tree.
+
+[niri]: https://github.com/YaLTeR/niri
+[noctalia]: https://github.com/nickglynne/noctalia
+
 ---
+
+## Contents
+
+1. [Philosophy](#philosophy)
+2. [What is in the image](#what-is-in-the-image)
+3. [Hardware support](#hardware-support)
+4. [AppImage support](#appimage-support)
+5. [Install](#install)
+6. [First boot](#first-boot)
+7. [Graphics and codecs](#graphics-and-codecs)
+8. [Per-machine notes](#per-machine-notes)
+9. [Building](#building)
+10. [What an offline build actually does](#what-an-offline-build-actually-does)
+11. [Project layout](#project-layout)
+12. [Troubleshooting](#troubleshooting)
+13. [License](#license)
 
 ## Philosophy
 
@@ -28,19 +58,7 @@ The only non-upstream artifact in the image is one systemd user unit, because
 niri deliberately does not autostart anything and noctalia has to be told to
 run.
 
-## Supported hardware
-
-| GPU | Shipped in the ISO | After install |
-| --- | --- | --- |
-| **Intel** | Mesa, `libva-intel-media-driver`, `libva-intel-driver` | Pick the VA-API driver with `vainfo` (see below) |
-| **AMD** | Mesa, `mesa-va-drivers-freeworld` | Nothing — hardware decode works out of the box |
-| **NVIDIA** | Mesa + `nvidia-gpu-firmware` | `sudo dnf install akmod-nvidia` (see [NVIDIA](#nvidia)) |
-
-Both laptop and desktop are first-class. Working suspend, brightness control and
-power profiles are in the base image; desktop-only extras (`ddcutil` for
-external monitor brightness) are included too.
-
-## What's included
+## What is in the image
 
 **Session**
 
@@ -66,16 +84,37 @@ the matching DSP blobs.
 
 **Firmware and hardware**
 
-`alsa-sof-firmware` `intel-audio-firmware` `cirrus-audio-firmware`
-`amd-gpu-firmware` `intel-gpu-firmware` `nvidia-gpu-firmware` `atheros-firmware`
-`brcmfmac-firmware` `iwlwifi-dvm-firmware` `iwlwifi-mvm-firmware`
-`realtek-firmware` `mt7xxx-firmware` `amd-ucode-firmware` `microcode_ctl`
-`fwupd` `gnome-firmware`
+Every firmware package Fedora ships is installed, so the image does not assume
+which hardware it lands on:
+
+```
+alsa-sof-firmware      intel-audio-firmware   cirrus-audio-firmware
+amd-gpu-firmware       amd-ucode-firmware     intel-gpu-firmware
+nvidia-gpu-firmware    atheros-firmware       brcmfmac-firmware
+realtek-firmware       mt7xxx-firmware        nxpwireless-firmware
+qcom-wwan-firmware     tiwilink-firmware      libertas-firmware
+iwlegacy-firmware      iwlwifi-dvm-firmware   iwlwifi-mvm-firmware
+iwlbluetooth-firmware  linux-firmware         wireless-regdb
+fwupd
+```
 
 Fedora's `@hardware-support` group is not used: it also drags in `intel-lpmd`,
 a daemon aimed at recent Intel laptops. The split above is the same payload with
 no platform assumption, so the image boots on Intel, AMD and NVIDIA hardware,
 laptop or desktop.
+
+`kernel-modules-extra` is installed too: the long tail of sensors, old radios,
+niche card readers and other devices the main module set does not carry, at
+~3 MB.
+
+**NVIDIA driver**
+
+`akmod-nvidia` from RPM Fusion is preinstalled, together with everything it
+needs to build at install time: `kernel-devel` (pinned to the kernel version the
+tree contains), `gcc`, `make`, `kernel-headers`, `glibc-devel`. An offline ISO
+has no second dnf pass, so a missing build dep would fail the install loudly
+instead of shipping a broken driver. On Secure Boot systems the first boot will
+prompt you to enrol a MOK key — complete it, or the module will not load.
 
 **Power and sensors**
 
@@ -180,6 +219,72 @@ preinstalled) · `podman` `podman-compose`
 `gitui` fills the TUI-git slot because `lazygit` was retired from Fedora and
 this image does not add COPRs.
 
+## Hardware support
+
+| GPU | Shipped in the ISO | After install |
+| --- | --- | --- |
+| **Intel** | Mesa, `libva-intel-media-driver`, `libva-intel-driver` | Pick the VA-API driver with `vainfo` (see below) |
+| **AMD** | Mesa, `mesa-va-drivers-freeworld` | Nothing — hardware decode works out of the box |
+| **NVIDIA** | Mesa + `nvidia-gpu-firmware` + `akmod-nvidia` | Enrol the MOK key at first boot if Secure Boot is on |
+
+Both laptop and desktop are first-class. Working suspend, brightness control and
+power profiles are in the base image; desktop-only extras (`ddcutil` for
+external monitor brightness) are included too.
+
+The image was scanned against an **HP EliteBook 840 G3** (Skylake i5-6300U,
+Intel HD 520, Intel 8260 Wi-Fi/Bluetooth, Intel HDA audio) to prove nothing is
+missing:
+
+| Component | Driver / module | Ships in | Blob it loads |
+| --- | --- | --- | --- |
+| HD Graphics 520 | `i915` | `kernel-modules` | `i915/skl_dmc_ver1_27.bin` — `intel-gpu-firmware` |
+| Wi-Fi 8260 (iwlmvm) | `iwlwifi`, `iwlmvm` | `kernel-modules` | `iwlwifi-8000C-36.ucode` — `iwlwifi-mvm-firmware` |
+| Bluetooth 8087:0a2b | `btusb` | `kernel-modules` | `intel/ibt-11-5.sfi`, `.ddc` — `iwlbluetooth-firmware` |
+| Audio (HDA, CX20724) | `snd_hda_intel`, `snd_hda_codec_conexant` | `kernel-modules` | none — legacy HDA uses the kernel mixer, not UCM |
+| Ethernet I219-LM | `e1000e` | `kernel-modules-core` | — |
+| Card reader RTS522A | `rtsx_pci` | `kernel-modules-core` | — |
+| Webcam (Chicony) | `uvcvideo` | `kernel-modules` | — |
+| Touchpad (Synaptics PS/2) | `psmouse` | built into the kernel | — |
+| Accelerometer LIS3LV02DL | `hp_accel`, `hp_wmi` | `kernel-modules` | — |
+| Thermal, RAPL, MEI | `intel_pch_thermal`, `coretemp`, `intel_rapl_msr`, `mei_me` | `kernel-modules-core` | — |
+| CPU microcode | — | `microcode_ctl` | `intel-ucode/06-4e-03` (Skylake-U) |
+
+Ownership was verified against which Fedora package ships each blob (not
+against a host that happens to have everything installed), and the driver
+side against the running system: every PCI device on the board has a driver bound, and the kernel log
+records no failed firmware load. Two things the scan settled:
+
+- **Audio is legacy HDA on the 840 G3, not SOF.** `snd_intel_dspcfg` sits at
+  `dsp_driver=0` (auto), the board exposes no SOF ACPI node, and
+  `snd_hda_intel` binds the CX20724 codec with HP's own `103c:8079` fixup.
+  `alsa-sof-firmware` is installed anyway — it costs 14 MB and the image is
+  hardware-agnostic.
+- **`kernel-modules-extra` is not needed for this laptop.** Every module above
+  lives in `kernel-modules` or `kernel-modules-core`, both of which come with
+  `kernel`. It is installed for other hardware.
+
+`kernel` is listed explicitly, not implied. Anaconda adds a kernel by itself only
+when it can resolve one from an enabled repository; when it cannot, it logs
+`Failed to select a kernel` and carries on installing. An online install never
+notices, because Fedora's repos have one. An offline install has only the
+embedded tree, so the kernel is in the tree because the kickstart asked for it —
+and `%post` gates on `kernel` being installed, so a regression fails the install
+instead of shipping an ISO that cannot boot.
+
+## AppImage support
+
+`fuse` + `fuse-libs`. A classic-runtime AppImage `dlopen`s `libfuse.so.2` and
+execs `fusermount`, and Fedora ships neither, so it fails with
+`dlopen(): error loading libfuse.so.2` — which reads like a corrupt download.
+Newer runtimes use libfuse3 (already present) or bundle FUSE statically, so this
+covers the ones that would otherwise break. Two packages, not one: `fuse`
+requires only `fuse-common`, so it brings the helper and not the library.
+
+Gear Lever, the AppImage browser/integrator, is preinstalled as a Flatpak. It
+talks to `org.freedesktop.Flatpak` so the AppImage runs on the host, not inside
+the sandbox, which is why `fuse` is a package here and not a side effect of the
+Flatpak.
+
 ## Install
 
 Two ISOs come out of this repository. They install the same system; they differ
@@ -188,7 +293,7 @@ only in where the packages come from.
 | ISO | Size | Install needs network | Built by |
 | --- | --- | --- | --- |
 | `…-45-x86_64.iso` | ~1.3 GB | yes | `./build.sh online` |
-| `…-45-x86_64-offline.iso` | ~2.7 GB | **no** | `./build.sh offline` |
+| `…-45-x86_64-offline.iso` | ~3.0 GB | **no** | `./build.sh offline` |
 
 Both fit a 4 GB USB stick.
 
@@ -217,7 +322,7 @@ see the GUI. Leaving them out is what keeps the installer interactive.
 
 ### What "offline" does and does not cover
 
-The offline ISO embeds the resolved RPM closure (~1.5 GB) as a `createrepo_c`
+The offline ISO embeds the resolved RPM closure (~2 GB) as a `createrepo_c`
 repository, and the generated kickstart installs from
 `file:///run/install/repo/packages`. No mirror is contacted at any point: the
 RPM Fusion release packages and the Chrome signing key are shipped on the ISO
@@ -247,6 +352,13 @@ ldconfig -p | grep libfuse.so.2 && command -v fusermount
 #    chrome://settings/performance -> Memory Saver -> on
 ```
 
+On NVIDIA hardware, also check the module built:
+
+```bash
+nvidia-smi            # after the MOK enrolment prompt at first boot
+journalctl -b | grep akmod
+```
+
 ## Graphics and codecs
 
 Fedora's own `ffmpeg-free` and `mesa-va-drivers` intentionally omit some
@@ -274,19 +386,9 @@ radeonsi, and `radeontop` is there if you want to watch the GPU.
 
 ### NVIDIA
 
-Proprietary drivers are **not** in the ISO, because `akmod-nvidia` builds a
-kernel module locally and Secure Boot systems require a MOK enrolment prompt at
-the machine's own console. That is a decision for the user, not for an
-unattended install.
-
-```bash
-sudo dnf install akmod-nvidia        # Turing and older
-# or, for Turing and newer:
-sudo dnf install akmod-nvidia-open
-```
-
-On Secure Boot systems the first boot will prompt you to enrol a MOK key —
-complete it, or the module will not load.
+`akmod-nvidia` is preinstalled and builds at install time. On Secure Boot
+systems the first boot will prompt you to enrol a MOK key — complete it, or the
+module will not load.
 
 NVIDIA hardware decode through VA-API needs `nvidia-vaapi-driver`, which is not
 packaged for Fedora 45 in RPM Fusion. Chromium's own Vulkan-based decode path is
@@ -295,7 +397,7 @@ the practical option there.
 ## Per-machine notes
 
 - [HP EliteBook 840 G3 / Skylake](for-elitebook-840-g3.md) — VA-API driver
-  selection, AV1 avoidance, sleep mode, zram sizing, i915 quirks.
+  selection, AV1 avoidance, sleep mode, i915 quirks.
 
 If a machine needs tweaks, add a file in that format rather than changing the
 image. Hardware workarounds do not belong in a general-purpose spin.
@@ -309,9 +411,9 @@ wrappers around it.
 ./build.sh deps       # lorax, pykickstart, xorriso, isomd5sum, podman
 ./build.sh base       # netinst ISO + RPM Fusion release RPMs + key + comps
 ./build.sh online     # out/niri-dev-45-x86_64.iso          (~1.3 GB)
-./build.sh offline    # out/niri-dev-45-x86_64-offline.iso  (~2.7 GB)
-./build.sh packages   # just resolve the package tree (packages/, ~1.5 GB)
-./build.sh check      # kickstart validation only
+./build.sh offline    # out/niri-dev-45-x86_64-offline.iso  (~3.0 GB)
+./build.sh packages   # just resolve the package tree (packages/, ~2 GB)
+./build.sh check      # kickstart validation + bash -n on every %pre/%post
 ```
 
 With `just`, the same steps are `just fetch-base`, `just build`,
@@ -352,14 +454,14 @@ owned by your user.
    else, `%post` included, is shared with the online image.
 
 The result is verified before packaging: resolving the list against only
-`file://…/packages` must succeed with zero problems. On Fedora 45 that is 1321
+`file://…/packages` must succeed with zero problems. On Fedora 45 that is 1428
 packages.
 
 The package resolution runs inside a
 `registry.fedoraproject.org/fedora:$FEDORA_RELEASE` container, so an older
 Fedora host can still build a correct image for the target release. Set
-`BUILD_IMAGE=none` when you are already inside a container of that release;
-that is what CI does.
+`BUILD_IMAGE=none` when you are already inside a container of the target
+release; that is what CI does.
 
 ### Requirements
 
@@ -382,6 +484,24 @@ scripts/make-offline-ks.py Writes the offline ISO's kickstart.
 justfile                   Thin wrappers around build.sh.
 .github/workflows/         Validation on push, ISO build on demand.
 ```
+
+## Troubleshooting
+
+- **"dlopen(): error loading libfuse.so.2"** — the AppImage is a classic-runtime
+  build and `fuse-libs` is missing. It is in the image; if you see this on a
+  different machine, install `fuse-libs`.
+- **NVIDIA black screen** — `akmod-nvidia` builds at install time. If the build
+  failed, the install still succeeded and you get nouveau. Rebuild with
+  `sudo akmods --force` and check `journalctl -b | grep akmod`. On Secure Boot
+  systems the MOK enrolment prompt at first boot is required; skipping it leaves
+  the module unsigned and unloaded.
+- **Boot after offline install, no kernel** — this was a real bug before
+  `kernel` was listed explicitly. If you have an old ISO, the kickstart in this
+  repository is the fix; rebuild.
+- **No network after install** — check `ip link` and `nmcli device status`. The
+  image carries every wireless firmware package, so a missing blob is not the
+  usual cause; a regulatory-domain problem is. `sudo fwupdmgr refresh &&
+  sudo fwupdmgr update` sometimes fixes a stale `wireless-regdb`.
 
 ## License
 

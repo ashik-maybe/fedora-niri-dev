@@ -7,8 +7,8 @@
 #   just deps           install build dependencies (lorax, pykickstart, podman)
 #   just fetch-base     download the netinst ISO, repo assets and comps
 #   just build          online ISO: installs from live repositories (~1.3 GB)
-#   just build-offline  offline ISO: installs with no network (~2.7 GB)
-#   just check          validate the kickstart only
+#   just build-offline  offline ISO: installs with no network (~3 GB)
+#   just check          validate the kickstart and its embedded shell
 #   just clean          remove build output
 #
 # Override the target release:

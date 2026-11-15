@@ -65,6 +65,18 @@ repo --name="rpmfusion-nonfree-updates" --baseurl=https://download1.rpmfusion.or
 @core
 @standard
 
+# The kernel is listed, not implied.
+#
+# Anaconda only adds `kernel` to the transaction if it can resolve it from an
+# enabled repository (get_kernel_package() in pyanaconda). When it cannot, it
+# logs "No such package: kernel" and carries on installing without one. The
+# online ISO never notices, because Fedora's own repos carry it. The offline
+# ISO installs from its embedded package tree and nothing else, so a tree
+# resolved from a kickstart that never mentions the kernel contains no kernel
+# rpm at all -- and the resulting install cannot boot. Listing it here is what
+# puts the kernel into that tree.
+kernel
+
 # Session
 niri
 noctalia
@@ -118,12 +130,37 @@ atheros-firmware
 brcmfmac-firmware
 iwlwifi-dvm-firmware
 iwlwifi-mvm-firmware
+iwlbluetooth-firmware
 realtek-firmware
 mt7xxx-firmware
 amd-ucode-firmware
 microcode_ctl
 fwupd
 gnome-firmware
+
+# Optional hardware, not in the default set
+#
+# kernel-modules-extra is a separate package from kernel-modules: it is the
+# long tail of sensors, old radios, niche card readers and other devices that
+# the main module set does not carry. Fedora's Workstation does not install it;
+# a catch-all image does, at ~3 MB.
+kernel-modules-extra
+
+# --- NVIDIA driver -------------------------------------------------
+#
+# RPM Fusion's akmod-nvidia builds the kernel module at install time and
+# rebuilds it on every kernel update, so it needs the build toolchain and the
+# matching kernel-devel in the same transaction. That is why gcc, make,
+# kernel-headers and glibc-devel are listed rather than implied: on an offline
+# ISO there is no second dnf pass to fetch them, and a missing build dep fails
+# the install instead of shipping a broken driver. kernel-devel pins the
+# exact kernel version the tree contains, so the module always matches.
+akmod-nvidia
+kernel-devel
+gcc
+make
+kernel-headers
+glibc-devel
 
 # Power and sensors
 power-profiles-daemon
@@ -138,6 +175,13 @@ mesa-vulkan-drivers
 vulkan-tools
 libva-utils
 radeontop
+
+# --- Graphics ------------------------------------------------------
+#
+# mesa-va-drivers-freeworld lives in the codecs section below because it is
+# the AMD video decode stack, not a graphics driver. libva-intel-* covers
+# Intel; both are present so the image does not need to know which GPU it
+# lands on.
 
 # Codecs (RPM Fusion)
 #
@@ -256,8 +300,7 @@ python3
 python3-pip
 python3-devel
 nodejs24
-gcc
-make
+# gcc and make ship via the NVIDIA toolchain block above (same transaction)
 pkgconf
 
 %end
@@ -398,7 +441,9 @@ missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
            mesa-va-drivers-freeworld libva-intel-media-driver nushell \
            ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
-           gstreamer1-plugins-ugly-free rpmfusion-free-release fuse; do
+           gstreamer1-plugins-ugly-free rpmfusion-free-release fuse \
+           kernel akmod-nvidia kernel-devel gcc make kernel-headers glibc-devel \
+           kernel-modules-extra; do
   if ! rpm -q "$pkg" >/dev/null 2>&1; then
     echo "MISSING REQUIRED PACKAGE: $pkg" >&2
     missing=1
