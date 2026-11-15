@@ -465,9 +465,10 @@ owned by your user.
    embedded repository, and `%packages` becomes the resolved list. Everything
    else, `%post` included, is shared with the online image.
 
-The result is verified before packaging: resolving the list against only
-`file://…/packages` must succeed with zero problems. On Fedora 45 that is 1428
-packages.
+The result is verified before packaging, twice: the package tree must resolve
+against only `file://…/packages` with zero problems (no network reachable), and
+the generated offline kickstart must pass the same kickstart validation the
+source one does. On Fedora 45 that is 1428 packages.
 
 The package resolution runs inside a
 `registry.fedoraproject.org/fedora:$FEDORA_RELEASE` container, so an older

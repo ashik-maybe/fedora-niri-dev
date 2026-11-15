@@ -86,3 +86,25 @@ for package in $expect_absent; do
 	fi
 done
 [ "$missing" -eq 0 ] || exit 1
+
+# The offline ISO must install with the network unplugged, so prove the
+# embedded tree is self-sufficient before the ISO is built. --disablerepo='*'
+# keeps dnf from quietly falling back to the internet; the only repository is
+# the one this script just created. --assumeno answers the confirmation with
+# "no", so a clean resolve still exits non-zero: what must never happen is a
+# dependency problem, a missing package, or an empty transaction.
+rm -rf /tmp/ks-offline-root; mkdir -p /tmp/ks-offline-root
+dnf -y install --installroot=/tmp/ks-offline-root --disablerepo='*' \
+	--repofrompath="ks-offline,file://$PWD/$dest" \
+	--releasever="$release" --nogpgcheck --assumeno \
+	"${install_list[@]}" --exclude="$excludes" >/tmp/ks-offline-verify.log 2>&1 || true
+if grep -qE '^(Problem|Error|No match|Failed)' /tmp/ks-offline-verify.log; then
+	echo "resolve-packages: the offline tree does not resolve standalone:" >&2
+	grep -E '^(Problem|Error|No match|Failed)' /tmp/ks-offline-verify.log | head -20 >&2
+	exit 1
+fi
+grep -q "Transaction Summary" /tmp/ks-offline-verify.log ||
+	die "offline verification produced no transaction"
+grep -qE "Installing:[[:space:]]+0 packages" /tmp/ks-offline-verify.log &&
+	die "offline verification resolved to zero packages"
+echo "offline tree resolves standalone: ${#install_list[@]} packages"

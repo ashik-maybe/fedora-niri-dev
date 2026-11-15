@@ -230,6 +230,9 @@ build_offline() {
 	fi
 
 	python3 scripts/make-offline-ks.py "$kickstart" build/packages.list build/offline.ks
+	# The generated kickstart is what Anaconda actually sees. Validate it the
+	# same way the source one is validated, before mkksiso burns it into the ISO.
+	bash scripts/check-kickstart.sh build/offline.ks
 
 	mkdir -p out build/offline-marker
 	: >build/offline-marker/offline
