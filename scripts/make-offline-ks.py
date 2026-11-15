@@ -27,7 +27,9 @@ for line in source:
     stripped = line.strip()
 
     if stripped.startswith("%packages"):
-        result.append("%packages")
+        # Keep the section's options (`--ignoremissing` and friends) so the two
+        # ISOs differ only in where the packages come from.
+        result.append(stripped)
         result.extend(packages)
         inside_packages = True
         continue

@@ -9,7 +9,7 @@
 #
 # Environment:
 #   FEDORA_RELEASE  release to resolve against (default 45)
-#   KS              kickstart to read (default kickstart/gnome-devstation.ks)
+#   KS              kickstart to read (default kickstart/niri-dev.ks)
 #   DEST            output directory (default packages)
 #   COMPOS          comps.xml for group expansion (default cache/comps.xml)
 #   ASSETS          directory with the release RPMs (default cache/assets)
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 release="${FEDORA_RELEASE:-45}"
-kickstart="${KS:-kickstart/gnome-devstation.ks}"
+kickstart="${KS:-kickstart/niri-dev.ks}"
 dest="${DEST:-packages}"
 compos="${COMPOS:-cache/comps.xml}"
 assets="${ASSETS:-cache/assets}"
