@@ -1,0 +1,44 @@
+name: validate
+
+# CI only validates the spin definition: the kickstart and the shell embedded
+# in it. The ISOs are built on the machine that will install them (see
+# README.md, "Building"); nothing is published or retained here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kickstart/**"
+      - "files/**"
+      - "repos/**"
+      - "scripts/**"
+      - "build.sh"
+      - "justfile"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "kickstart/**"
+      - "files/**"
+      - "repos/**"
+      - "scripts/**"
+      - "build.sh"
+      - "justfile"
+      - ".github/workflows/validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:45
+    steps:
+      - name: Install git
+        run: dnf install -y git
+      - uses: actions/checkout@v4
+      - name: Install pykickstart
+        run: dnf install -y pykickstart
+      # build.sh check runs ksvalidator and then `bash -n` on every
+      # %pre/%post block, which is the part ksvalidator cannot see.
+      - name: Validate kickstart
+        run: ./build.sh check

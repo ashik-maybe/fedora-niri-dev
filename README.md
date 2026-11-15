@@ -404,8 +404,8 @@ image. Hardware workarounds do not belong in a general-purpose spin.
 
 ## Building
 
-Everything goes through `build.sh`; `just` and the GitHub workflow are thin
-wrappers around it.
+Everything goes through `build.sh`; `just` is a thin wrapper around it, and the
+GitHub workflow only validates the kickstart.
 
 ```bash
 ./build.sh deps       # lorax, pykickstart, xorriso, isomd5sum, podman
@@ -418,6 +418,18 @@ wrappers around it.
 
 With `just`, the same steps are `just fetch-base`, `just build`,
 `just build-offline`, `just packages`, `just check`.
+
+### What a local build needs
+
+- a Linux host — Fedora preferred, but any Linux with podman works, because the
+  package resolution runs in a `fedora:$FEDORA_RELEASE` container
+- ~14 GB of free disk for the offline ISO (~900 MB netinst, ~2 GB package tree,
+  ~3 GB output, plus scratch)
+- network access on the first build
+- `sudo`, for `./build.sh deps` and the single `mkksiso` step
+
+`out/`, `packages/`, `cache/` and `build/` are git-ignored; a clone builds as
+is, and the offline tree re-resolves itself whenever the kickstart changes.
 
 Build a different release:
 
@@ -459,9 +471,11 @@ packages.
 
 The package resolution runs inside a
 `registry.fedoraproject.org/fedora:$FEDORA_RELEASE` container, so an older
-Fedora host can still build a correct image for the target release. Set
-`BUILD_IMAGE=none` when you are already inside a container of the target
-release; that is what CI does.
+Fedora host can still build a correct image for the target release, and the
+resolver's RPM Fusion release packages stay out of your system. Leave
+`BUILD_IMAGE` unset on a normal host; `BUILD_IMAGE=none` is only for when you
+are already inside a disposable container of the target release (it runs the
+resolver against the running system).
 
 ### Requirements
 
@@ -482,7 +496,7 @@ scripts/expand-packages.py comps + %packages -> explicit package list.
 scripts/resolve-packages.sh Downloads that list into packages/.
 scripts/make-offline-ks.py Writes the offline ISO's kickstart.
 justfile                   Thin wrappers around build.sh.
-.github/workflows/         Validation on push, ISO build on demand.
+.github/workflows/         Kickstart validation on push and PR.
 ```
 
 ## Troubleshooting
