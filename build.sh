@@ -175,6 +175,13 @@ fetch_packages() {
 		# this, because the ISO build needs loop devices and therefore
 		# privileges). Run the resolver directly instead of nesting podman.
 		command -v dnf >/dev/null || die "BUILD_IMAGE=none needs dnf on this machine"
+		# The podman path installs these inside the container; here we are
+		# already in it, so say what is missing instead of failing halfway
+		# through a download.
+		for tool in createrepo_c zstd python3; do
+			command -v "$tool" >/dev/null ||
+				die "BUILD_IMAGE=none needs $tool installed"
+		done
 		FEDORA_RELEASE="$release" ARCH="$arch" KS="$kickstart" \
 			EXPECT_ABSENT="$expect_absent" bash scripts/resolve-packages.sh
 		return
