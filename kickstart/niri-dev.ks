@@ -203,6 +203,15 @@ swappy
 wl-clipboard
 wl-mirror
 
+# AppImage support
+#
+# Type-2 AppImages mount themselves through FUSE 2, and Fedora ships only FUSE 3
+# by default. Without this, every AppImage dies with "dlopen(): error loading
+# libfuse.so.2", which reads like a broken download. `fuse` pulls `fuse-libs`
+# (the library) and `fusermount` (the helper the runtime execs), and coexists
+# with fuse3.
+fuse
+
 # Terminal and shell
 ptyxis
 nushell
@@ -330,17 +339,19 @@ rpm --import /var/tmp/ks-assets/google-chrome.asc
 systemctl set-default graphical.target
 systemctl enable sddm.service
 
-# 3. Flathub, and the one Flatpak this image ships. Both steps need network and
-#    a working /var inside the chroot; if either is flaky, warn and move on
-#    rather than failing an otherwise good install.
+# 3. Flathub, and the Flatpaks this image standardises on. Both steps need
+#    network and a working /var inside the chroot; if either is flaky, warn and
+#    move on rather than failing an otherwise good install.
 if [ "$offline" -eq 1 ]; then
-  echo "offline ISO: skipping Flathub; install Flatseal after first boot" >&2
+  echo "offline ISO: skipping Flathub; install Flatseal and Gear Lever after first boot" >&2
 else
   flatpak remote-add --if-not-exists flathub \
     https://flathub.org/repo/flathub.flatpakrepo || \
     echo "WARNING: could not add the flathub remote" >&2
-  flatpak install -y --system flathub com.github.tchx84.Flatseal || \
-    echo "WARNING: Flatseal not preinstalled; run 'flatpak install flathub com.github.tchx84.Flatseal' after first boot" >&2
+  for app in com.github.tchx84.Flatseal it.mijorus.gearlever; do
+    flatpak install -y --system flathub "$app" || \
+      echo "WARNING: $app not preinstalled; run 'flatpak install flathub $app' after first boot" >&2
+  done
 fi
 
 # 4. Nushell as the login shell, keeping bash installed for scripts.
@@ -383,13 +394,20 @@ missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
            mesa-va-drivers-freeworld libva-intel-media-driver nushell \
            ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
-           gstreamer1-plugins-ugly-free rpmfusion-free-release; do
+           gstreamer1-plugins-ugly-free rpmfusion-free-release fuse; do
   if ! rpm -q "$pkg" >/dev/null 2>&1; then
     echo "MISSING REQUIRED PACKAGE: $pkg" >&2
     missing=1
   fi
 done
 [ "$missing" -eq 0 ] || exit 1
+
+# The AppImage runtime dlopens this exact soname, so check the library rather
+# than trusting the package name.
+if ! ldconfig -p | grep -q 'libfuse\.so\.2'; then
+  echo "MISSING LIBFUSE.SO.2: AppImages will not run" >&2
+  exit 1
+fi
 
 # 9. Hardware decode: report, never fail. VMs and NVIDIA-only machines have no
 #    VA-API device, and this spin must install there too. On Intel and AMD the

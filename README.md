@@ -137,6 +137,13 @@ formats come from.
 
 `grim` `slurp` `swappy` `wl-clipboard` `wl-mirror`
 
+**AppImage support**
+
+`fuse` — FUSE 2. Every type-2 AppImage mounts itself through `libfuse.so.2`,
+which Fedora does not ship by default (only FUSE 3). Without it, AppImages fail
+with `dlopen(): error loading libfuse.so.2`, which looks like a corrupt
+download. `fuse` pulls `fuse-libs` and `fusermount`, and coexists with `fuse3`.
+
 **Terminal and shell**
 
 `ptyxis` `nushell` `tmux` `bash`
@@ -152,8 +159,8 @@ changes arrive automatically.
 
 **Browser and containers**
 
-`google-chrome-stable` · `flatpak` (Flathub enabled, Flatseal preinstalled) ·
-`podman` `podman-compose`
+`google-chrome-stable` · `flatpak` (Flathub enabled, Flatseal and Gear Lever
+preinstalled) · `podman` `podman-compose`
 
 **Developer toolchain**
 
@@ -207,11 +214,11 @@ repository, and the generated kickstart installs from
 RPM Fusion release packages and the Chrome signing key are shipped on the ISO
 too, so `%post` does not download anything either.
 
-One thing still needs a network, and the build says so out loud: **Flatseal** is
-a Flatpak, so it is skipped during an offline install with a warning. Add the
-Flathub remote and install it after first boot. Updates also need a network, so
-right after an offline install your system is the package set that was current
-when the ISO was built.
+One thing still needs a network, and the build says so out loud: **Flatseal** and
+**Gear Lever** are Flatpaks, so they are skipped during an offline install with a
+warning. Add the Flathub remote and install them after first boot. Updates also
+need a network, so right after an offline install your system is the package set
+that was current when the ISO was built.
 
 ## First boot
 
