@@ -3,9 +3,12 @@ name: iso
 # `validate` runs on every change to the spin definition. It is cheap: no ISO is
 # downloaded.
 #
-# `build` is manual only, because it downloads the Fedora netinst (~1.3 GB) and
-# uploads the resulting ISO (~1.3 GB). Run it from the Actions tab when you want
-# an artifact.
+# `build` is manual only: it downloads the Fedora netinst, resolves ~1.5 GB of
+# packages for the offline image, and uploads a 2.5 GB artifact.
+#
+# The build runs in a privileged container on purpose. mkksiso rebuilds the
+# ISO's EFI boot image with mkfs.vfat, which needs a loop device; a normal
+# container (the `container:` key below) cannot allocate one.
 
 on:
   push:
@@ -14,6 +17,8 @@ on:
       - "kickstart/**"
       - "files/**"
       - "repos/**"
+      - "scripts/**"
+      - "build.sh"
       - "justfile"
       - ".github/workflows/build-iso.yml"
   pull_request:
@@ -21,6 +26,8 @@ on:
       - "kickstart/**"
       - "files/**"
       - "repos/**"
+      - "scripts/**"
+      - "build.sh"
       - "justfile"
       - ".github/workflows/build-iso.yml"
   workflow_dispatch:
@@ -29,6 +36,14 @@ on:
         description: Fedora release to build against
         required: true
         default: "45"
+      target:
+        description: Which ISO to build
+        type: choice
+        options:
+          - offline
+          - online
+          - both
+        default: offline
 
 permissions:
   contents: read
@@ -50,22 +65,34 @@ jobs:
     needs: validate
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:45
     env:
       FEDORA_RELEASE: ${{ github.event.inputs.fedora_release || '45' }}
+      TARGET: ${{ github.event.inputs.target || 'offline' }}
     steps:
-      - name: Install tooling
-        run: dnf install -y git just lorax pykickstart xorriso isomd5sum
       - uses: actions/checkout@v4
-      - name: Fetch Fedora Everything netinst
-        run: just fetch-base
       - name: Build ISO
-        run: just build
+        run: |
+          docker run --rm --privileged \
+            -v "$PWD:/work" -w /work \
+            -e FEDORA_RELEASE \
+            -e TARGET \
+            -e BUILD_IMAGE=none \
+            "registry.fedoraproject.org/fedora:${FEDORA_RELEASE}" \
+            bash -euo pipefail -c '
+              dnf -y install lorax pykickstart xorriso isomd5sum curl zstd python3
+              case "$TARGET" in
+                offline) ./build.sh offline ;;
+                both)    ./build.sh all ;;
+                *)       ./build.sh online ;;
+              esac
+            '
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: niri-dev-${{ env.FEDORA_RELEASE }}-x86_64
-          path: out/*.iso
+          name: niri-dev-${{ env.FEDORA_RELEASE }}-x86_64-${{ env.TARGET }}
+          path: |
+            out/*.iso
+            out/*.iso.sha256
           # The ISO is already compressed; zipping it just burns CI minutes.
           compression-level: 0
           if-no-files-found: error

@@ -1,7 +1,10 @@
 # Build output
 /out/
+/build/
+/packages/
 *.iso
 *.iso.sha256
 
-# Cached Fedora netinst base image (large, and reproducible)
+# Cached downloads: the netinst ISO, the RPM Fusion release packages, keys,
+# comps, and the package tree. Large, and reproducible.
 /cache/
