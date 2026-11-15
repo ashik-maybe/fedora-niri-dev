@@ -205,12 +205,16 @@ wl-mirror
 
 # AppImage support
 #
-# Type-2 AppImages mount themselves through FUSE 2, and Fedora ships only FUSE 3
-# by default. Without this, every AppImage dies with "dlopen(): error loading
-# libfuse.so.2", which reads like a broken download. `fuse` pulls `fuse-libs`
-# (the library) and `fusermount` (the helper the runtime execs), and coexists
-# with fuse3.
+# AppImage runtimes differ. The classic one dlopens libfuse.so.2 and fails with
+# "dlopen(): error loading libfuse.so.2" when it is missing; newer ones can use
+# libfuse3 (Fedora ships that) or bundle FUSE statically. Only the classic one
+# needs anything from us, and it is still the most common one in the wild.
+#
+# Both packages are required: `fuse` needs only `fuse-common`, not `fuse-libs`,
+# so it installs `fusermount` and leaves the library out. Neither package
+# conflicts with fuse3.
 fuse
+fuse-libs
 
 # Terminal and shell
 ptyxis

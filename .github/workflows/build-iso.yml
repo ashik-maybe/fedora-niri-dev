@@ -58,8 +58,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install pykickstart
         run: dnf install -y pykickstart
+      # build.sh check runs ksvalidator and then `bash -n` on every
+      # %pre/%post block, which is the part ksvalidator cannot see.
       - name: Validate kickstart
-        run: ksvalidator kickstart/niri-dev.ks
+        run: ./build.sh check
 
   build:
     needs: validate

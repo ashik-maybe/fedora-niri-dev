@@ -139,10 +139,19 @@ formats come from.
 
 **AppImage support**
 
-`fuse` — FUSE 2. Every type-2 AppImage mounts itself through `libfuse.so.2`,
-which Fedora does not ship by default (only FUSE 3). Without it, AppImages fail
-with `dlopen(): error loading libfuse.so.2`, which looks like a corrupt
-download. `fuse` pulls `fuse-libs` and `fusermount`, and coexists with `fuse3`.
+`fuse` `fuse-libs` — FUSE 2. A classic-runtime AppImage `dlopen`s
+`libfuse.so.2` and execs `fusermount`; Fedora ships neither, so it fails with
+`dlopen(): error loading libfuse.so.2`, which looks like a corrupt download.
+Newer runtimes use libfuse3 (already present) or bundle FUSE statically, so
+this covers the ones that would otherwise break.
+
+Two packages, not one, and that is not obvious: `fuse` requires `fuse-common`
+but **not** `fuse-libs`, so installing `fuse` alone gives you the helper and no
+library. Neither conflicts with `fuse3`.
+
+If a machine has no `/dev/fuse` at all (some containers, some kernels), the
+runtime's own escape hatch still works: `./whatever.AppImage
+--appimage-extract-and-run`.
 
 **Terminal and shell**
 
@@ -222,7 +231,7 @@ that was current when the ISO was built.
 
 ## First boot
 
-Three things worth checking once:
+Four things worth checking once:
 
 ```bash
 # 1. Hardware video decode is alive
@@ -231,7 +240,10 @@ vainfo | grep -E 'H264|HEVC|VP9'
 # 2. If Intel and the list above is short, try the other driver
 LIBVA_DRIVER_NAME=i965 vainfo
 
-# 3. Chrome memory saver (8 GB machines especially)
+# 3. AppImage support: both lines must print something
+ldconfig -p | grep libfuse.so.2 && command -v fusermount
+
+# 4. Chrome memory saver (8 GB machines especially)
 #    chrome://settings/performance -> Memory Saver -> on
 ```
 
@@ -363,6 +375,7 @@ files/zram-generator.conf  Swap-on-RAM sizing for developer workloads.
 files/99-zram-sysctl.conf  swappiness/page-cluster tuning to match zram.
 repos/google-chrome.repo   Shipped to /etc/yum.repos.d for Chrome updates.
 build.sh                   All build entry points, online and offline.
+scripts/check-kickstart.sh ksvalidator + bash -n on every %pre/%post.
 scripts/expand-packages.py comps + %packages -> explicit package list.
 scripts/resolve-packages.sh Downloads that list into packages/.
 scripts/make-offline-ks.py Writes the offline ISO's kickstart.
