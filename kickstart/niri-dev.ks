@@ -50,10 +50,10 @@ repo --name="rpmfusion-free" --baseurl=https://download1.rpmfusion.org/free/fedo
 
 repo --name="rpmfusion-free-updates" --baseurl=https://download1.rpmfusion.org/free/fedora/updates/$releasever/$basearch/
 
-# RPM Fusion nonfree is enabled but ships nothing by default: the ISO stays
-# generic, and the repo is there for what users add later (akmod-nvidia, unrar,
-# media extras). Fedora 45 now provides libva-intel-media-driver itself, so the
-# Intel VA-API backend no longer needs a nonfree package at install time.
+# RPM Fusion nonfree is enabled and used for exactly one package: unrar. The
+# rest of nonfree is there for what users add later (akmod-nvidia, the media
+# extras). Fedora 45 provides libva-intel-media-driver itself, so the Intel
+# VA-API backend no longer needs a nonfree package at install time.
 
 repo --name="rpmfusion-nonfree" --baseurl=https://download1.rpmfusion.org/nonfree/fedora/releases/$releasever/Everything/$basearch/os/
 
@@ -141,19 +141,22 @@ radeontop
 
 # Codecs (RPM Fusion)
 #
-# Deliberately absent: ffmpeg and libavcodec-freeworld. RPM Fusion's ffmpeg
-# conflicts with Fedora's ffmpeg-free, which VLC and the GStreamer plugins link
-# against, and a %packages section cannot perform an --allowerasing swap. A
-# conflicting request fails the whole install. Fedora's ffmpeg-free already
-# decodes H.264 and HEVC; full encoder support is an optional post-install swap
-# documented in README.md.
+# Full ffmpeg is installed by a swap in %post: RPM Fusion's ffmpeg conflicts
+# with Fedora's ffmpeg-free, and a %packages section cannot express
+# --allowerasing. The swap buys encoders (libx264, libx265) and complete codec
+# coverage; Fedora's ffmpeg-free alone decodes H.264 and HEVC.
 #
 # Deliberately absent: mesa-vdpau-drivers-freeworld. It no longer exists as a
 # separate package on Fedora 45; mesa-va-drivers-freeworld obsoletes it.
 #
 # GStreamer is listed explicitly because WebRTC in Chrome, screen recording and
-# the Nautilus video thumbnails all go through it. libav is the decoder for
-# H.264/HEVC without the full ffmpeg swap.
+# the Nautilus video thumbnails all go through it. The VA-API plugin needs no
+# package of its own: libgstva.so ships inside gstreamer1-plugins-bad-free.
+#
+# The -freeworld packages are additive on Fedora 45, not replacements: verified
+# with repoquery, they declare no Conflicts and share no plugin files with the
+# -free packages above. libheif-freeworld only adds the HEVC/AV1/x264/x265
+# codec plugins and pulls Fedora's libheif in as a dependency.
 libva-intel-media-driver
 libva-intel-driver
 mesa-va-drivers-freeworld
@@ -161,16 +164,19 @@ gstreamer1-plugins-good
 gstreamer1-plugins-bad-free
 gstreamer1-plugins-bad-freeworld
 gstreamer1-plugins-ugly
+gstreamer1-plugins-ugly-free
 gstreamer1-plugin-libav
 gstreamer1-plugin-openh264
 gstreamer1-plugin-dav1d
 libheif-freeworld
+unrar
 
 # Media
 #
-# vlc is Fedora's own build as of Fedora 45; RPM Fusion only adds
-# vlc-plugins-freeworld on top, which is optional.
+# vlc is Fedora's own build as of Fedora 45; RPM Fusion adds the codec plugins
+# on top, which is where DVD, Blu-ray and the remaining formats come from.
 vlc
+vlc-plugins-freeworld
 yt-dlp
 playerctl
 cava
@@ -290,6 +296,13 @@ dnf install -y \
 # instead of letting the first `dnf upgrade` stop for a key prompt.
 rpm --import https://dl.google.com/linux/linux_signing_key.pub
 
+# 1b. Full FFmpeg. ffmpeg-free cannot coexist with RPM Fusion's ffmpeg, so it is
+#     a swap, not an addition, and a %packages section cannot express
+#     --allowerasing. Playback works either way; this buys the encoders.
+if ! dnf swap -y ffmpeg-free ffmpeg --allowerasing; then
+  echo "WARNING: ffmpeg swap failed; ffmpeg-free remains installed" >&2
+fi
+
 # 2. Graphical boot by default, with SDDM as the greeter.
 systemctl set-default graphical.target
 systemctl enable sddm.service
@@ -341,7 +354,9 @@ fi
 #    loudly instead of shipping a broken desktop.
 missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
-           mesa-va-drivers-freeworld libva-intel-media-driver nushell; do
+           mesa-va-drivers-freeworld libva-intel-media-driver nushell \
+           ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
+           gstreamer1-plugins-ugly-free; do
   if ! rpm -q "$pkg" >/dev/null 2>&1; then
     echo "MISSING REQUIRED PACKAGE: $pkg" >&2
     missing=1
@@ -353,8 +368,8 @@ done
 #    VA-API device, and this spin must install there too. On Intel and AMD the
 #    profile list is the thing to check after first boot (see README.md).
 if ! vainfo 2>/dev/null | grep -q 'VAProfileH264High'; then
-  echo "WARNING: vainfo reports no H264 profile (expected on VMs and on NVIDIA" \
-       "without nvidia-vaapi-driver); check 'vainfo' after first boot" >&2
+  echo "WARNING: vainfo reports no H264 profile (expected on VMs and on" \
+       "NVIDIA without a VA-API backend); check 'vainfo' after first boot" >&2
 fi
 
 %end
