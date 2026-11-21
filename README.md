@@ -72,6 +72,10 @@ No separate polkit agent is shipped: noctalia implements one itself, so
 what lets `nm-applet` and `blueman-applet` appear in noctalia's system tray
 instead of an XEmbed tray that a Wayland session does not have.
 
+`sddm-wayland-generic` pulls `weston`, so the login screen runs a second
+compositor. The image keeps SDDM for a graphical login and accepts that cost.
+`greetd` with `tuigreet` is the lean alternative for a text login.
+
 **Audio, network, bluetooth**
 
 `pipewire` `pipewire-pulseaudio` `pipewire-alsa` `pipewire-utils` `wireplumber`
