@@ -63,6 +63,8 @@ older, `packages_stale()` will re-resolve on the next offline build.
 ## 5. Booted image
 
 ```bash
+./build.sh deps
+./build.sh deps-test
 ./build.sh offline
 ./build.sh test-iso
 ```
@@ -79,7 +81,7 @@ systemctl --user is-active noctalia.service        # active
 journalctl --user -b | grep -i 'ordering cycle'    # no output
 
 # The generated keymap is in place and no stock bind survives.
-grep -c waybar /etc/niri/config.kdl                # 1, on the commented line
+grep -c '^// spawn-at-startup "waybar"' /etc/niri/config.kdl     # 1
 grep -nE 'spawn "(alacritty|fuzzel|swaylock)"' /etc/niri/config.kdl   # no output
 
 # The package set matches the kickstart.
