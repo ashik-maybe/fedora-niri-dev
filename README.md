@@ -20,7 +20,7 @@ kickstart. Two ISOs come out: an online one that resolves packages at install
 time, and an offline one that embeds the whole resolved package tree.
 
 [niri]: https://github.com/YaLTeR/niri
-[noctalia]: https://github.com/nickglynne/noctalia
+[noctalia]: https://github.com/noctalia-dev/noctalia
 
 ---
 
