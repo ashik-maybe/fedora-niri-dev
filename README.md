@@ -178,7 +178,7 @@ formats come from.
 **Files and documents**
 
 `nautilus` `file-roller` `loupe` `papers` `gnome-text-editor`
-`gnome-disk-utility` `seahorse` `gnome-font-viewer` `evolution-data-server`
+`gnome-disk-utility` `seahorse` `gnome-font-viewer`
 
 **Screenshots and capture**
 
