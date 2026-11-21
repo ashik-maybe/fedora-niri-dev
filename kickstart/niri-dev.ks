@@ -451,7 +451,7 @@ fi
 #    loudly instead of shipping a broken desktop.
 missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
-           mesa-va-drivers-freeworld libva-intel-media-driver nushell \
+           gnome-keyring-pam mesa-va-drivers-freeworld libva-intel-media-driver nushell \
            ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
            gstreamer1-plugins-ugly-free rpmfusion-free-release fuse \
            kernel akmod-nvidia kernel-devel gcc make kernel-headers glibc-devel \
