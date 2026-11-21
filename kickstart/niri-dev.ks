@@ -337,10 +337,13 @@ if [ -e /run/install/repo/offline ]; then
 fi
 
 # Enable the user unit statically: `systemctl --user enable` cannot run here,
-# but a wants-symlink is exactly what it would create.
-mkdir -p "$root/etc/systemd/user/graphical-session.target.wants"
+# but a wants-symlink is exactly what it would create. The symlink hangs off
+# niri.service.wants, not graphical-session.target.wants: niri's own unit pulls
+# the shell (noctalia) in, and ordering a unit after a target that wants it
+# creates a cycle.
+mkdir -p "$root/etc/systemd/user/niri.service.wants"
 ln -sfn /usr/lib/systemd/user/noctalia.service \
-        "$root/etc/systemd/user/graphical-session.target.wants/noctalia.service"
+        "$root/etc/systemd/user/niri.service.wants/noctalia.service"
 
 %end
 
