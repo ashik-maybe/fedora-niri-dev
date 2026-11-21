@@ -4,9 +4,10 @@ A developer-focused Fedora 45 respin built around [niri] — a scrollable
 Wayland compositor — and [noctalia], its session shell. Stock niri, stock
 noctalia, and a working toolchain out of the box.
 
-No themes. No dotfiles. No custom `niri/config.kdl`. If upstream niri or
-noctalia changes something, this image inherits the change instead of fighting
-it.
+No themes. No dotfiles. The image ships one generated system config: it copies
+niri's packaged default and changes only the program names for terminal,
+launcher and lock, so upstream keymap changes still arrive. A user config at
+`~/.config/niri/config.kdl` still overrides it.
 
 The one deliberate exception to "Fedora's defaults" is swap sizing: the image
 ships a `zram-generator.conf` and a matching `sysctl.d` file tuned for
@@ -494,7 +495,8 @@ kickstart therefore targets **Fedora 44+**.
 
 ```
 kickstart/niri-dev.ks      The spin definition. Everything else supports it.
-files/noctalia.service     The one non-upstream artifact: session autostart.
+files/noctalia.service     Session autostart of noctalia.
+files/niri-glue.sh         Builds /etc/niri/config.kdl from the packaged default.
 files/zram-generator.conf  Swap-on-RAM sizing for developer workloads.
 files/99-zram-sysctl.conf  swappiness/page-cluster tuning to match zram.
 repos/google-chrome.repo   Shipped to /etc/yum.repos.d for Chrome updates.
