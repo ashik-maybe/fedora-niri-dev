@@ -240,7 +240,6 @@ gnome-text-editor
 gnome-disk-utility
 seahorse
 gnome-font-viewer
-evolution-data-server
 
 # Screenshots and capture
 grim
