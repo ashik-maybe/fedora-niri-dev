@@ -423,6 +423,7 @@ GitHub workflow only validates the kickstart.
 
 ```bash
 ./build.sh deps       # lorax, pykickstart, xorriso, isomd5sum, podman
+./build.sh deps-test  # qemu, socat, OVMF and xorriso; only needed for test-iso
 ./build.sh base       # netinst ISO + RPM Fusion release RPMs + key + comps
 ./build.sh online     # out/niri-dev-45-x86_64.iso          (~1.3 GB)
 ./build.sh offline    # out/niri-dev-45-x86_64-offline.iso  (~3.0 GB)
@@ -432,9 +433,12 @@ GitHub workflow only validates the kickstart.
 ./build.sh test-iso   # content + boot test of an out/*.iso (pass its path)
 ```
 
-With `just`, the same steps are `just fetch-base`, `just build`,
+With `just`, the same steps are `just fetch-base`, `just deps-test`, `just build`,
 `just build-offline`, `just packages`, `just check`, `just preflight`,
 `just test-iso`.
+
+See `TESTING.md` for the full gate list and the post-install boot checks. The
+key-press checks need a human.
 
 ### What a local build needs
 
@@ -443,7 +447,7 @@ With `just`, the same steps are `just fetch-base`, `just build`,
 - ~14 GB of free disk for the offline ISO (~900 MB netinst, ~2 GB package tree,
   ~3 GB output, plus scratch)
 - network access on the first build
-- `sudo`, for `./build.sh deps` and the single `mkksiso` step
+- `sudo`, for `./build.sh deps`, `./build.sh deps-test` and the single `mkksiso` step
 
 `out/`, `packages/`, `cache/` and `build/` are git-ignored; a clone builds as
 is, and the offline tree re-resolves itself whenever the kickstart changes.
@@ -504,6 +508,7 @@ kickstart therefore targets **Fedora 44+**.
 
 ```
 kickstart/niri-dev.ks      The spin definition. Everything else supports it.
+TESTING.md                 Gates, boot checks and what is not automated.
 files/noctalia.service     Session autostart of noctalia.
 files/niri-glue.sh         Builds /etc/niri/config.kdl from the packaged default.
 files/zram-generator.conf  Swap-on-RAM sizing for developer workloads.
@@ -516,6 +521,7 @@ scripts/resolve-packages.sh Downloads that list into packages/.
 scripts/make-offline-ks.py Writes the offline ISO's kickstart.
 scripts/preflight.sh    Environment readiness check, before the heavy steps.
 scripts/test-iso.sh     Content + boot test of a built ISO.
+scripts/test-niri-glue.sh  Patches the real packaged niri keymap and checks it.
 justfile                   Thin wrappers around build.sh.
 .github/workflows/         Kickstart validation on push and PR.
 ```
