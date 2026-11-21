@@ -5,6 +5,7 @@
 #
 # Usage:
 #   just deps           install build dependencies (lorax, pykickstart, podman)
+#   just deps-test      install qemu, socat, OVMF and xorriso for test-iso
 #   just fetch-base     download the netinst ISO, repo assets and comps
 #   just build          online ISO: installs from live repositories (~1.3 GB)
 #   just build-offline  offline ISO: installs with no network (~3 GB)
@@ -23,6 +24,9 @@ default:
 
 deps:
     ./build.sh deps
+
+deps-test:
+    ./build.sh deps-test
 
 check:
     ./build.sh check

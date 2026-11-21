@@ -4,8 +4,10 @@
 #
 # build.sh runs this inside a Fedora container of the target release, so the
 # closure matches that release rather than whatever the build host runs. It can
-# also be run directly on a machine that is already on the target release:
-# nothing here touches the host's rpmdb (--installroot is an empty directory).
+# also be run directly on a machine that is already on the target release: the
+# default path leaves the host rpmdb and /etc/yum.repos.d untouched;
+# BUILD_IMAGE=none runs on this machine and does install the RPM Fusion release
+# packages here.
 #
 # Environment:
 #   FEDORA_RELEASE  release to resolve against (default 45)
@@ -35,7 +37,7 @@ for asset in rpmfusion-free-release.noarch.rpm rpmfusion-nonfree-release.noarch.
 done
 
 # The repositories the kickstart itself uses. RPM Fusion comes from its release
-# packages, Chrome and Helium from the repo files this repository ships.
+# packages, Chrome from the repo file this repository ships.
 # --nosignature is the chicken-and-egg: the key that signs these packages lives
 # inside them. They arrive over HTTPS from the project's own mirror, and their
 # only content is repository definitions.

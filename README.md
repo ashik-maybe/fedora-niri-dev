@@ -1,12 +1,13 @@
 # niri-dev
 
 A developer-focused Fedora 45 respin built around [niri] — a scrollable
-Wayland compositor — and [noctalia], its session shell. Stock niri, stock
-noctalia, and a working toolchain out of the box.
+Wayland compositor — and [noctalia], its session shell. Stock niri and stock
+noctalia, with the developer toolchain installed.
 
-No themes. No dotfiles. No custom `niri/config.kdl`. If upstream niri or
-noctalia changes something, this image inherits the change instead of fighting
-it.
+No themes. No dotfiles. The image ships one generated system config: it copies
+niri's packaged default and changes only the program names for terminal,
+launcher and lock, so upstream keymap changes still arrive. A user config at
+`~/.config/niri/config.kdl` still overrides it.
 
 The one deliberate exception to "Fedora's defaults" is swap sizing: the image
 ships a `zram-generator.conf` and a matching `sysctl.d` file tuned for
@@ -19,7 +20,7 @@ kickstart. Two ISOs come out: an online one that resolves packages at install
 time, and an offline one that embeds the whole resolved package tree.
 
 [niri]: https://github.com/YaLTeR/niri
-[noctalia]: https://github.com/nickglynne/noctalia
+[noctalia]: https://github.com/noctalia-dev/noctalia
 
 ---
 
@@ -72,6 +73,10 @@ No separate polkit agent is shipped: noctalia implements one itself, so
 what lets `nm-applet` and `blueman-applet` appear in noctalia's system tray
 instead of an XEmbed tray that a Wayland session does not have.
 
+`sddm-wayland-generic` pulls `weston`, so the login screen runs a second
+compositor. The image keeps SDDM for a graphical login and accepts that cost.
+`greetd` with `tuigreet` is the lean alternative for a text login.
+
 **Audio, network, bluetooth**
 
 `pipewire` `pipewire-pulseaudio` `pipewire-alsa` `pipewire-utils` `wireplumber`
@@ -116,9 +121,18 @@ has no second dnf pass, so a missing build dep would fail the install loudly
 instead of shipping a broken driver. On Secure Boot systems the first boot will
 prompt you to enrol a MOK key — complete it, or the module will not load.
 
+The package's `%posttrans` scriptlet starts `akmods`, so the build happens
+during the install transaction. This makes the image universal rather than
+minimal: Intel and AMD machines carry the toolchain and an unused module, and
+`akmods` rebuilds it after each kernel update. The repository ships one image,
+so this cost is deliberate.
+
 **Power and sensors**
 
 `power-profiles-daemon` `thermald` `powertop` `lm_sensors` `brightnessctl`
+
+`thermald` is Intel-only and does nothing on AMD; it is kept because the
+image is universal.
 
 **Graphics**
 
@@ -170,7 +184,7 @@ formats come from.
 **Files and documents**
 
 `nautilus` `file-roller` `loupe` `papers` `gnome-text-editor`
-`gnome-disk-utility` `seahorse` `gnome-font-viewer` `evolution-data-server`
+`gnome-disk-utility` `seahorse` `gnome-font-viewer`
 
 **Screenshots and capture**
 
@@ -471,7 +485,7 @@ owned by your user.
 The result is verified before packaging, twice: the package tree must resolve
 against only `file://…/packages` with zero problems (no network reachable), and
 the generated offline kickstart must pass the same kickstart validation the
-source one does. On Fedora 45 that is 1428 packages.
+source one does. On Fedora 45 that is 1414 packages.
 
 The package resolution runs inside a
 `registry.fedoraproject.org/fedora:$FEDORA_RELEASE` container, so an older
@@ -490,7 +504,8 @@ kickstart therefore targets **Fedora 44+**.
 
 ```
 kickstart/niri-dev.ks      The spin definition. Everything else supports it.
-files/noctalia.service     The one non-upstream artifact: session autostart.
+files/noctalia.service     Session autostart of noctalia.
+files/niri-glue.sh         Builds /etc/niri/config.kdl from the packaged default.
 files/zram-generator.conf  Swap-on-RAM sizing for developer workloads.
 files/99-zram-sysctl.conf  swappiness/page-cluster tuning to match zram.
 repos/google-chrome.repo   Shipped to /etc/yum.repos.d for Chrome updates.

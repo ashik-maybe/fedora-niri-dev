@@ -87,6 +87,8 @@ xdg-desktop-portal
 xdg-desktop-portal-gtk
 xdg-desktop-portal-gnome
 gnome-keyring
+# PAM unlocks the Login keyring at login, and Noctalia stores its master key in Secret Service.
+gnome-keyring-pam
 libsecret
 polkit
 qt6-qtwayland
@@ -238,7 +240,6 @@ gnome-text-editor
 gnome-disk-utility
 seahorse
 gnome-font-viewer
-evolution-data-server
 
 # Screenshots and capture
 grim
@@ -330,6 +331,8 @@ for f in rpmfusion-free-release.noarch.rpm rpmfusion-nonfree-release.noarch.rpm 
   install -Dm0644 "$assets/$f" "$root/var/tmp/ks-assets/$f"
 done
 
+install -Dm0755 "$src/niri-glue.sh" "$root/var/tmp/ks-assets/niri-glue.sh"
+
 # Marker written by `build.sh offline`. The chrooted %post uses it to skip the
 # steps that can only work with a network.
 if [ -e /run/install/repo/offline ]; then
@@ -337,10 +340,13 @@ if [ -e /run/install/repo/offline ]; then
 fi
 
 # Enable the user unit statically: `systemctl --user enable` cannot run here,
-# but a wants-symlink is exactly what it would create.
-mkdir -p "$root/etc/systemd/user/graphical-session.target.wants"
+# but a wants-symlink is exactly what it would create. The symlink hangs off
+# niri.service.wants, not graphical-session.target.wants: niri's own unit pulls
+# the shell (noctalia) in, and ordering a unit after a target that wants it
+# creates a cycle.
+mkdir -p "$root/etc/systemd/user/niri.service.wants"
 ln -sfn /usr/lib/systemd/user/noctalia.service \
-        "$root/etc/systemd/user/graphical-session.target.wants/noctalia.service"
+        "$root/etc/systemd/user/niri.service.wants/noctalia.service"
 
 %end
 
@@ -401,11 +407,15 @@ else
   done
 fi
 
-# 4. Nushell as the login shell, keeping bash installed for scripts.
+# 4. Bash is the login shell because niri-session execs the login shell on its
+#    start path; nushell is installed and opt-in. /etc/shells keeps
+#    /usr/bin/nu so `chsh -s /usr/bin/nu` works.
 grep -qx /usr/bin/nu /etc/shells || echo /usr/bin/nu >> /etc/shells
-while IFS=: read -r name _ uid _; do
-  [ "$uid" -ge 1000 ] && [ "$uid" -lt 65534 ] && usermod -s /usr/bin/nu "$name" || true
-done < /etc/passwd
+
+# niri-glue: the script rewrites niri's packaged default keymap so Mod+T,
+# Mod+D and Super+Alt+L point at ptyxis and Noctalia instead of alacritty,
+# fuzzel and swaylock.
+bash /var/tmp/ks-assets/niri-glue.sh
 
 # 5. Chrome as the default browser. Written as a system-wide XDG default
 #    because `xdg-settings` needs a live user session.
@@ -429,7 +439,9 @@ elif [ -f /usr/lib/systemd/system/dnf-automatic.timer ]; then
   systemctl enable dnf-automatic.timer
 fi
 
-# 7. Snapshots before transactions, so a bad update is reversible.
+# 7. Root snapper config only. `snapper -c root create-config /` creates the
+#    config, not snapshots: automatic snapshots need a plugin this image does
+#    not ship, so take manual snapshots with btrfs-assistant.
 if command -v snapper >/dev/null 2>&1 && [ ! -d /.snapshots ]; then
   snapper -c root create-config / || true
 fi
@@ -439,7 +451,7 @@ fi
 #    loudly instead of shipping a broken desktop.
 missing=0
 for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
-           mesa-va-drivers-freeworld libva-intel-media-driver nushell \
+           gnome-keyring-pam mesa-va-drivers-freeworld libva-intel-media-driver nushell \
            ffmpeg vlc-plugins-freeworld gstreamer1-plugins-bad-freeworld \
            gstreamer1-plugins-ugly-free rpmfusion-free-release fuse \
            kernel akmod-nvidia kernel-devel gcc make kernel-headers glibc-devel \
@@ -449,6 +461,10 @@ for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
     missing=1
   fi
 done
+if [ ! -s /etc/niri/config.kdl ]; then
+  echo "MISSING NIRI CONFIG: /etc/niri/config.kdl is empty or missing" >&2
+  missing=1
+fi
 [ "$missing" -eq 0 ] || exit 1
 
 # The AppImage runtime dlopens this exact soname, so check the library rather

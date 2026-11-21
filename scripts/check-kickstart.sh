@@ -7,7 +7,7 @@
 # being installed. `bash -n` on each extracted block catches that in a second.
 set -euo pipefail
 
-kickstart="${1:-kickstart/gnome-devstation.ks}"
+kickstart="${1:-kickstart/niri-dev.ks}"
 [ -f "$kickstart" ] || {
 	echo "check: no such kickstart: $kickstart" >&2
 	exit 1

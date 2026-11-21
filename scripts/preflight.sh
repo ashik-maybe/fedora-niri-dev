@@ -59,7 +59,7 @@ want lorax "provides mkksiso; './build.sh deps' installs it"
 want isomd5sum "post-build media check; './build.sh deps' installs it"
 
 echo "test tools (only needed for ./build.sh test-iso):"
-want qemu-system-x86_64 "boot smoke test; './build.sh deps' installs qemu"
+want qemu-system-x86_64 "boot smoke test; './build.sh deps-test' installs qemu"
 want socat "talks to the qemu monitor"
 [ -r /usr/share/edk2/ovmf/OVMF_CODE.fd ] &&
 	ok "OVMF firmware found" ||
@@ -90,7 +90,6 @@ done <<-EOF
 	rpmfusion-free	https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${release}.noarch.rpm
 	rpmfusion-nonfree	https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${release}.noarch.rpm
 	chrome-repo	https://dl.google.com/linux/chrome/rpm/stable/x86_64/repodata/repomd.xml
-	helium-copr	https://download.copr.fedorainfracloud.org/results/imput/helium/fedora-${release}-${arch}/repodata/repomd.xml
 EOF
 
 echo "privileges:"
