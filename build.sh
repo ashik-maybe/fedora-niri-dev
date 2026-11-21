@@ -7,7 +7,7 @@
 # single command and leaves every download and the output owned by you.
 #
 #   ./build.sh deps       install the build dependencies (Fedora host)
-#   ./build.sh deps-test  install qemu, socat and OVMF; only needed for test-iso
+#   ./build.sh deps-test  install qemu, socat, OVMF and xorriso; needed for test-iso
 #   ./build.sh base       download the netinst ISO, the repo assets and comps
 #   ./build.sh check      validate the kickstart and its %pre/%post shell
 #   ./build.sh preflight  environment readiness: disk, tools, mirrors, container
@@ -110,7 +110,7 @@ fetch_assets() {
 		rpmfusion-free-release.noarch.rpm https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${release}.noarch.rpm
 		rpmfusion-nonfree-release.noarch.rpm https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${release}.noarch.rpm
 		google-chrome.asc https://dl.google.com/linux/linux_signing_key.pub
-		EOF
+	EOF
 }
 
 # Group expansion for the offline list needs Fedora's comps data. It lives in
@@ -260,7 +260,7 @@ deps)
 	sudo dnf install -y lorax pykickstart xorriso isomd5sum podman curl zstd python3
 	;;
 deps-test)
-	sudo dnf install -y qemu-system-x86_64 socat edk2-ovmf
+	sudo dnf install -y qemu-system-x86_64 socat edk2-ovmf xorriso
 	;;
 base) base ;;
 check) check ;;
@@ -289,7 +289,7 @@ all)
 clean) rm -rf out build ;;
 distclean) rm -rf out build cache packages ;;
 *)
-	sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
 	exit 1
 	;;
 esac
