@@ -407,11 +407,10 @@ else
   done
 fi
 
-# 4. Nushell as the login shell, keeping bash installed for scripts.
+# 4. Bash is the login shell because niri-session execs the login shell on its
+#    start path; nushell is installed and opt-in. /etc/shells keeps
+#    /usr/bin/nu so `chsh -s /usr/bin/nu` works.
 grep -qx /usr/bin/nu /etc/shells || echo /usr/bin/nu >> /etc/shells
-while IFS=: read -r name _ uid _; do
-  [ "$uid" -ge 1000 ] && [ "$uid" -lt 65534 ] && usermod -s /usr/bin/nu "$name" || true
-done < /etc/passwd
 
 # niri-glue: the script rewrites niri's packaged default keymap so Mod+T,
 # Mod+D and Super+Alt+L point at ptyxis and Noctalia instead of alacritty,
