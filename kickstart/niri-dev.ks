@@ -330,6 +330,8 @@ for f in rpmfusion-free-release.noarch.rpm rpmfusion-nonfree-release.noarch.rpm 
   install -Dm0644 "$assets/$f" "$root/var/tmp/ks-assets/$f"
 done
 
+install -Dm0755 "$src/niri-glue.sh" "$root/var/tmp/ks-assets/niri-glue.sh"
+
 # Marker written by `build.sh offline`. The chrooted %post uses it to skip the
 # steps that can only work with a network.
 if [ -e /run/install/repo/offline ]; then
@@ -410,6 +412,11 @@ while IFS=: read -r name _ uid _; do
   [ "$uid" -ge 1000 ] && [ "$uid" -lt 65534 ] && usermod -s /usr/bin/nu "$name" || true
 done < /etc/passwd
 
+# niri-glue: the script rewrites niri's packaged default keymap so Mod+T,
+# Mod+D and Super+Alt+L point at ptyxis and Noctalia instead of alacritty,
+# fuzzel and swaylock.
+bash /var/tmp/ks-assets/niri-glue.sh
+
 # 5. Chrome as the default browser. Written as a system-wide XDG default
 #    because `xdg-settings` needs a live user session.
 cat > /etc/xdg/mimeapps.list <<'EOF'
@@ -452,6 +459,10 @@ for pkg in niri noctalia sddm xwayland-satellite google-chrome-stable \
     missing=1
   fi
 done
+if [ ! -s /etc/niri/config.kdl ]; then
+  echo "MISSING NIRI CONFIG: /etc/niri/config.kdl is empty or missing" >&2
+  missing=1
+fi
 [ "$missing" -eq 0 ] || exit 1
 
 # The AppImage runtime dlopens this exact soname, so check the library rather
