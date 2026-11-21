@@ -439,7 +439,9 @@ elif [ -f /usr/lib/systemd/system/dnf-automatic.timer ]; then
   systemctl enable dnf-automatic.timer
 fi
 
-# 7. Snapshots before transactions, so a bad update is reversible.
+# 7. Root snapper config only. `snapper -c root create-config /` creates the
+#    config, not snapshots: automatic snapshots need a plugin this image does
+#    not ship, so take manual snapshots with btrfs-assistant.
 if command -v snapper >/dev/null 2>&1 && [ ! -d /.snapshots ]; then
   snapper -c root create-config / || true
 fi

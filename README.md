@@ -1,8 +1,8 @@
 # niri-dev
 
 A developer-focused Fedora 45 respin built around [niri] — a scrollable
-Wayland compositor — and [noctalia], its session shell. Stock niri, stock
-noctalia, and a working toolchain out of the box.
+Wayland compositor — and [noctalia], its session shell. Stock niri and stock
+noctalia, with the developer toolchain installed.
 
 No themes. No dotfiles. The image ships one generated system config: it copies
 niri's packaged default and changes only the program names for terminal,
