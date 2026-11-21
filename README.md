@@ -485,7 +485,7 @@ owned by your user.
 The result is verified before packaging, twice: the package tree must resolve
 against only `file://…/packages` with zero problems (no network reachable), and
 the generated offline kickstart must pass the same kickstart validation the
-source one does. On Fedora 45 that is 1428 packages.
+source one does. On Fedora 45 that is 1414 packages.
 
 The package resolution runs inside a
 `registry.fedoraproject.org/fedora:$FEDORA_RELEASE` container, so an older
