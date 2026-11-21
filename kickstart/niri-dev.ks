@@ -87,6 +87,8 @@ xdg-desktop-portal
 xdg-desktop-portal-gtk
 xdg-desktop-portal-gnome
 gnome-keyring
+# PAM unlocks the Login keyring at login, and Noctalia stores its master key in Secret Service.
+gnome-keyring-pam
 libsecret
 polkit
 qt6-qtwayland
