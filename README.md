@@ -121,6 +121,12 @@ has no second dnf pass, so a missing build dep would fail the install loudly
 instead of shipping a broken driver. On Secure Boot systems the first boot will
 prompt you to enrol a MOK key — complete it, or the module will not load.
 
+The package's `%posttrans` scriptlet starts `akmods`, so the build happens
+during the install transaction. This makes the image universal rather than
+minimal: Intel and AMD machines carry the toolchain and an unused module, and
+`akmods` rebuilds it after each kernel update. The repository ships one image,
+so this cost is deliberate.
+
 **Power and sensors**
 
 `power-profiles-daemon` `thermald` `powertop` `lm_sensors` `brightnessctl`
