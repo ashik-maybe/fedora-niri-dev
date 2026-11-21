@@ -263,9 +263,9 @@ lspci -nn | grep -i network
 
 ## 12. Noctalia autostart fallback
 
-Noctalia runs as a systemd user unit (`noctalia.service`), enabled for
-`graphical-session.target`. This is the most likely thing to misbehave, because
-niri deliberately starts nothing on its own.
+Noctalia runs as a systemd user unit (`noctalia.service`), linked from
+`niri.service.wants`, so it starts when niri starts. This is the most likely
+thing to misbehave, because niri deliberately starts nothing on its own.
 
 If you log in and get a bare niri with no bar:
 
@@ -274,15 +274,15 @@ systemctl --user status noctalia.service
 journalctl --user -u noctalia.service -b
 ```
 
-If it never starts, the documented upstream fallback is one line in
-`~/.config/niri/config.kdl`:
+If it is not running, check the unit is linked and link it to niri:
 
-```kdl
-spawn-at-startup "noctalia"
+```bash
+systemctl --user add-wants niri.service noctalia.service
 ```
 
-That works because niri passes its environment to children it spawns, which is
-exactly what a systemd user unit relies on.
+A manual `spawn-at-startup "noctalia"` in `~/.config/niri/config.kdl` is not
+the fallback: it can start a second instance while the unit is already
+running.
 
 ## 13. Verification checklist
 
