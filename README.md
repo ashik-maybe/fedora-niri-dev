@@ -125,6 +125,9 @@ prompt you to enrol a MOK key — complete it, or the module will not load.
 
 `power-profiles-daemon` `thermald` `powertop` `lm_sensors` `brightnessctl`
 
+`thermald` is Intel-only and does nothing on AMD; it is kept because the
+image is universal.
+
 **Graphics**
 
 `mesa-dri-drivers` `mesa-vulkan-drivers` `vulkan-tools` `libva-utils`
