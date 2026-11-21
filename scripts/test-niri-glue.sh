@@ -24,6 +24,14 @@ SRC="$tmp/usr/share/doc/niri/default-config.kdl" DST="$tmp/config.kdl" bash file
 
 cfg="$tmp/config.kdl"
 
+# niri reads the system config as the session user, so 0600 from mktemp
+# would make the whole glue patch useless.
+mode=$(stat -c %a "$cfg")
+[ "$mode" = 644 ] || {
+	echo "test-niri-glue: expected config mode 0644, got $mode" >&2
+	exit 1
+}
+
 assert_has() {
 	grep -Fq "$1" "$cfg" || {
 		echo "test-niri-glue: expected config to contain: $1" >&2

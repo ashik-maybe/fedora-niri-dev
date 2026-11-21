@@ -26,6 +26,7 @@ mkdir -p "$(dirname "$dst")"
 # not leave a truncated config that the install gate would still accept.
 tmp=$(mktemp "$dst.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
+chmod 0644 "$tmp"
 
 sed -e 's|^spawn-at-startup "waybar"|// spawn-at-startup "waybar"|' \
 	-e 's|{ spawn "alacritty"; }|{ spawn "ptyxis"; }|' \
