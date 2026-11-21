@@ -35,7 +35,7 @@ for asset in rpmfusion-free-release.noarch.rpm rpmfusion-nonfree-release.noarch.
 done
 
 # The repositories the kickstart itself uses. RPM Fusion comes from its release
-# packages, Chrome and Helium from the repo files this repository ships.
+# packages, Chrome from the repo file this repository ships.
 # --nosignature is the chicken-and-egg: the key that signs these packages lives
 # inside them. They arrive over HTTPS from the project's own mirror, and their
 # only content is repository definitions.

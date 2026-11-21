@@ -90,7 +90,6 @@ done <<-EOF
 	rpmfusion-free	https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${release}.noarch.rpm
 	rpmfusion-nonfree	https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${release}.noarch.rpm
 	chrome-repo	https://dl.google.com/linux/chrome/rpm/stable/x86_64/repodata/repomd.xml
-	helium-copr	https://download.copr.fedorainfracloud.org/results/imput/helium/fedora-${release}-${arch}/repodata/repomd.xml
 EOF
 
 echo "privileges:"
