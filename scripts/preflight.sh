@@ -59,7 +59,7 @@ want lorax "provides mkksiso; './build.sh deps' installs it"
 want isomd5sum "post-build media check; './build.sh deps' installs it"
 
 echo "test tools (only needed for ./build.sh test-iso):"
-want qemu-system-x86_64 "boot smoke test; './build.sh deps' installs qemu"
+want qemu-system-x86_64 "boot smoke test; './build.sh deps-test' installs qemu"
 want socat "talks to the qemu monitor"
 [ -r /usr/share/edk2/ovmf/OVMF_CODE.fd ] &&
 	ok "OVMF firmware found" ||
